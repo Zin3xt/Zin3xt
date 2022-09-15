@@ -85,92 +85,91 @@ void loop()
     // if you get here you have connected to the WiFi
     Serial.println("connected...yeey :)");
   }
-  if (recvData())
+  // if (recvData())
 
-  {
-    // create json string from struct
-    String postStr = "{\"soilmoisturepercent\":";
-    postStr += variable.soilmoisturepercent;
-    postStr += ",\"nitrogen\":";
-    postStr += variable.nitrogen;
-    postStr += ",\"phosphorous\":";
-    postStr += variable.phosphorous;
-    postStr += ",\"potassium\":";
-    postStr += variable.potassium;
-    postStr += ",\"temperature\":";
-    postStr += variable.temperature;
-    postStr += "}";
-    Serial.print("Posting: ");
-    Serial.println(postStr);
+  // {
+  //   // create json string from struct
+  //   String postStr = "{\"soilmoisturepercent\":";
+  //   postStr += variable.soilmoisturepercent;
+  //   postStr += ",\"nitrogen\":";
+  //   postStr += variable.nitrogen;
+  //   postStr += ",\"phosphorous\":";
+  //   postStr += variable.phosphorous;
+  //   postStr += ",\"potassium\":";
+  //   postStr += variable.potassium;
+  //   postStr += ",\"temperature\":";
+  //   postStr += variable.temperature;
+  //   postStr += "}";
+  //   Serial.print("Posting: ");
+  //   Serial.println(postStr);
 
-    sendData(postStr);
-    // Serial.println("Data Received:");
+  //   sendData(postStr);
+    Serial.println("Data Received:");
 
-    // Serial.print("Soil Moisture: ");
-    // Serial.print(variable.soilmoisturepercent);
-    // Serial.println("%");
+    Serial.print("Soil Moisture: ");
+    Serial.print(variable.soilmoisturepercent);
+    Serial.println("%");
 
-    // Serial.print("Nitrogen: ");
-    // Serial.print(variable.nitrogen);
-    // Serial.println(" mg/kg");
-    // Serial.print("Phosphorous: ");
-    // Serial.print(variable.phosphorous);
-    // Serial.println(" mg/kg");
-    // Serial.print("Potassium: ");
-    // Serial.print(variable.potassium);
-    // Serial.println(" mg/kg");
+    Serial.print("Nitrogen: ");
+    Serial.print(variable.nitrogen);
+    Serial.println(" mg/kg");
+    Serial.print("Phosphorous: ");
+    Serial.print(variable.phosphorous);
+    Serial.println(" mg/kg");
+    Serial.print("Potassium: ");
+    Serial.print(variable.potassium);
+    Serial.println(" mg/kg");
 
-    // Serial.print("Temperature: ");
-    // Serial.print(variable.temperature);
-    // Serial.println("*C");
+    Serial.print("Temperature: ");
+    Serial.print(variable.temperature);
+    Serial.println("*C");
 
-    // Serial.println();
+    Serial.println();
 
-    // if (client.connect(server, 80))
-    // {
-    //   String postStr = apiKey;
-    //   postStr += "&field1=";
-    //   postStr += String(variable.soilmoisturepercent);
-    //   postStr += "&field2=";
-    //   postStr += String(variable.nitrogen);
-    //   postStr += "&field3=";
-    //   postStr += String(variable.phosphorous);
-    //   postStr += "&field4=";
-    //   postStr += String(variable.potassium);
-    //   postStr += "&field5=";
-    //   postStr += String(variable.temperature);
-    //   postStr += "\r\n\r\n\r\n\r\n\r\n";
+    if (client.connect(server, 80))
+    {
+      String postStr = apiKey;
+      postStr += "&field1=";
+      postStr += String(variable.soilmoisturepercent);
+      postStr += "&field2=";
+      postStr += String(variable.nitrogen);
+      postStr += "&field3=";
+      postStr += String(variable.phosphorous);
+      postStr += "&field4=";
+      postStr += String(variable.potassium);
+      postStr += "&field5=";
+      postStr += String(variable.temperature);
+      postStr += "\r\n\r\n\r\n\r\n\r\n";
 
-    //   client.print("POST /update HTTP/1.1\n");
-    //   client.print("Host: api.thingspeak.com\n");
-    //   client.print("Connection: close\n");
-    //   client.print("X-THINGSPEAKAPIKEY: " + apiKey + "\n");
-    //   client.print("Content-Type: application/x-www-form-urlencoded\n");
-    //   client.print("Content-Length: ");
-    //   client.print(postStr.length());
-    //   client.print("\n\n");
-    //   client.print(postStr);
-    //   delay(1000);
-    //   Serial.println("Data Sent to Server");
-    // }
-    // client.stop();
-  }
+      client.print("POST /update HTTP/1.1\n");
+      client.print("Host: api.thingspeak.com\n");
+      client.print("Connection: close\n");
+      client.print("X-THINGSPEAKAPIKEY: " + apiKey + "\n");
+      client.print("Content-Type: application/x-www-form-urlencoded\n");
+      client.print("Content-Length: ");
+      client.print(postStr.length());
+      client.print("\n\n");
+      client.print(postStr);
+      delay(1000);
+      Serial.println("Data Sent to Server");
+    }
+    client.stop();  
 }
 
-void sendData(String data)
-{
+// // void sendData(String data)
+// {
 
-  Serial.println("Sending data to server");
-  if (client.connect(server, 80))
-  {
-    client.println("POST /update HTTP/1.1");
-    client.println("Host: snms-100e5.web.app/api/v1/snms/add");
-    client.println("Connection: close");
-    client.println("Content-Type: application/json");
-    client.println("Content-Length: " + String(data.length()));
-    client.println();
-    client.println(data);
-    Serial.println("Data Sent to Server");
-  }
-  client.stop();
-}
+//   Serial.println("Sending data to server");
+//   if (client.connect(server, 80))
+//   {
+//     client.println("POST /update HTTP/1.1");
+//     client.println("Host: snms-100e5.web.app/api/v1/snms/add");
+//     client.println("Connection: close");
+//     client.println("Content-Type: application/json");
+//     client.println("Content-Length: " + String(data.length()));
+//     client.println();
+//     client.println(data);
+//     Serial.println("Data Sent to Server");
+//   }
+//   client.stop();
+// }
