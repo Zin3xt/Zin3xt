@@ -1,13 +1,61 @@
 #include <Arduino.h>
+#include <Firebase_ESP_Client.h>
 #include <WiFi.h>
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
-String apiKey = "SSU3AUBCRN9PKI96";
+#include <time.h>
 
-const char *server = "snms-100e5.web.app";
-void sendData(String);
+// Provide the token generation process info.
+#include "addons/TokenHelper.h"
+// Provide the RTDB payload printing info and other helper functions.
+#include "addons/RTDBHelper.h"
+
+#define API_KEY "AIzaSyBaC-nDYGGweVndczqJbwantLzacnR5AyI"
+
+// Insert Authorized Email and Corresponding Password
+#define USER_EMAIL "vzichri@gmail.com"
+#define USER_PASSWORD "Killnext21"
+
+// Insert RTDB URLefine the RTDB URL
+#define DATABASE_URL "https://console.firebase.google.com/u/0/project/iot-smns/database/iot-smns-default-rtdb/data/~2F"
+
+// Define Firebase objects
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+String parentPath;
+String uid;
+String databasePath;
+const char *ntpServer = "pool.ntp.org";
+
+int timestamp;
+FirebaseJson json;
+
+String tempPath = "/temperature";
+String humPath = "/humidity";
+String nitroPath = "/nitrogen";
+String phosPath = "/phosphorous";
+String potasPath = "/potassium";
+String timePath = "/timestamp";
+// Timer variables (send new readings every three minutes)
+unsigned long sendDataPrevMillis = 0;
+unsigned long timerDelay = 180000;
+
+// Function that gets current epoch time
+unsigned long getTime()
+{
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo))
+  {
+    // Serial.println("Failed to obtain time");
+    return (0);
+  }
+  time(&now);
+  return now;
+}
 
 RF24 radio(4, 5);
 const uint64_t address = 0xF0F0F0F0E1LL;
@@ -15,11 +63,11 @@ WiFiManager wm;
 
 struct MyVariable
 {
-  byte soilmoisturepercent;
-  byte nitrogen;
-  byte phosphorous;
-  byte potassium;
-  byte temperature;
+  float soilmoisturepercent;
+  float nitrogen;
+  float phosphorous;
+  float potassium;
+  float temperature;
 };
 MyVariable variable;
 
@@ -50,6 +98,44 @@ void setup()
   }
   Serial.println("");
   Serial.println("WiFi connected");
+  configTime(0, 0, ntpServer);
+
+  // Assign the api key (required)
+  config.api_key = API_KEY;
+
+  // Assign the user sign in credentials
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+
+  // Assign the RTDB URL (required)
+  config.database_url = DATABASE_URL;
+
+  Firebase.reconnectWiFi(true);
+  fbdo.setResponseSize(4096);
+
+  // Assign the callback function for the long running token generation task */
+  config.token_status_callback = tokenStatusCallback; // see addons/TokenHelper.h
+
+  // Assign the maximum retry of token generation
+  config.max_token_generation_retry = 5;
+
+  // Initialize the library with the Firebase authen and config
+  Firebase.begin(&config, &auth);
+
+  // Getting the user UID might take a few seconds
+  Serial.println("Getting User UID");
+  while ((auth.token.uid) == "")
+  {
+    Serial.print('.');
+    delay(1000);
+  }
+  // Print user UID
+  uid = auth.token.uid.c_str();
+  Serial.print("User UID: ");
+  Serial.println(uid);
+
+  // Update database path
+  databasePath = "/UsersData/" + uid + "/readings";
 }
 
 int recvData()
@@ -85,91 +171,24 @@ void loop()
     // if you get here you have connected to the WiFi
     Serial.println("connected...yeey :)");
   }
-  // if (recvData())
+  // Send new readings to database
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > timerDelay || sendDataPrevMillis == 0))
+  {
+    sendDataPrevMillis = millis();
 
-  // {
-  //   // create json string from struct
-  //   String postStr = "{\"soilmoisturepercent\":";
-  //   postStr += variable.soilmoisturepercent;
-  //   postStr += ",\"nitrogen\":";
-  //   postStr += variable.nitrogen;
-  //   postStr += ",\"phosphorous\":";
-  //   postStr += variable.phosphorous;
-  //   postStr += ",\"potassium\":";
-  //   postStr += variable.potassium;
-  //   postStr += ",\"temperature\":";
-  //   postStr += variable.temperature;
-  //   postStr += "}";
-  //   Serial.print("Posting: ");
-  //   Serial.println(postStr);
+    // Get current timestamp
+    timestamp = getTime();
+    Serial.print("time: ");
+    Serial.println(timestamp);
 
-  //   sendData(postStr);
-    Serial.println("Data Received:");
+    parentPath = databasePath + "/" + String(timestamp);
 
-    Serial.print("Soil Moisture: ");
-    Serial.print(variable.soilmoisturepercent);
-    Serial.println("%");
-
-    Serial.print("Nitrogen: ");
-    Serial.print(variable.nitrogen);
-    Serial.println(" mg/kg");
-    Serial.print("Phosphorous: ");
-    Serial.print(variable.phosphorous);
-    Serial.println(" mg/kg");
-    Serial.print("Potassium: ");
-    Serial.print(variable.potassium);
-    Serial.println(" mg/kg");
-
-    Serial.print("Temperature: ");
-    Serial.print(variable.temperature);
-    Serial.println("*C");
-
-    Serial.println();
-
-    if (client.connect(server, 80))
-    {
-      String postStr = apiKey;
-      postStr += "&field1=";
-      postStr += String(variable.soilmoisturepercent);
-      postStr += "&field2=";
-      postStr += String(variable.nitrogen);
-      postStr += "&field3=";
-      postStr += String(variable.phosphorous);
-      postStr += "&field4=";
-      postStr += String(variable.potassium);
-      postStr += "&field5=";
-      postStr += String(variable.temperature);
-      postStr += "\r\n\r\n\r\n\r\n\r\n";
-
-      client.print("POST /update HTTP/1.1\n");
-      client.print("Host: api.thingspeak.com\n");
-      client.print("Connection: close\n");
-      client.print("X-THINGSPEAKAPIKEY: " + apiKey + "\n");
-      client.print("Content-Type: application/x-www-form-urlencoded\n");
-      client.print("Content-Length: ");
-      client.print(postStr.length());
-      client.print("\n\n");
-      client.print(postStr);
-      delay(1000);
-      Serial.println("Data Sent to Server");
-    }
-    client.stop();  
+    json.set(tempPath.c_str(), String(variable.soilmoisturepercent));
+    json.set(humPath.c_str(), String(variable.temperature));
+    json.set(nitroPath.c_str(), String(variable.nitrogen));
+    json.set(phosPath.c_str(), String(variable.phosphorous));
+    json.set(potasPath.c_str(), String(variable.potassium));
+    json.set(timePath, String(timestamp));
+    Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
+  }
 }
-
-// // void sendData(String data)
-// {
-
-//   Serial.println("Sending data to server");
-//   if (client.connect(server, 80))
-//   {
-//     client.println("POST /update HTTP/1.1");
-//     client.println("Host: snms-100e5.web.app/api/v1/snms/add");
-//     client.println("Connection: close");
-//     client.println("Content-Type: application/json");
-//     client.println("Content-Length: " + String(data.length()));
-//     client.println();
-//     client.println(data);
-//     Serial.println("Data Sent to Server");
-//   }
-//   client.stop();
-// }
